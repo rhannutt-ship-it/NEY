@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>NEY · Music Player</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    color: #fff;
+    overflow-x: hidden;
+  }
+  body {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    min-height: 100vh;
+    background-color: #000;
+    background-image: url('bg.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.88) 0%, rgba(5,0,15,0.94) 100%),
+      radial-gradient(circle at 20% 10%, rgba(255,0,150,0.15), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(0,220,255,0.15), transparent 40%);
+    z-index: 0;
+    pointer-events: none;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      0deg,
+      rgba(255,255,255,0.02) 0px,
+      rgba(255,255,255,0.02) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    z-index: 1;
+    pointer-events: none;
+  }
+  .player {
+    position: relative;
+    z-index: 2;
+    background: rgba(8, 2, 20, 0.78);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 0, 150, 0.25);
+    border-radius: 4px;
+    padding: 32px;
+    width: 100%;
+    max-width: 720px;
+    box-shadow:
+      0 0 60px rgba(255, 0, 150, 0.25),
+      0 0 120px rgba(0, 220, 255, 0.12),
+      inset 0 0 40px rgba(255, 0, 150, 0.05);
+    clip-path: polygon(
+      0 12px, 12px 0,
+      calc(100% - 12px) 0, 100% 12px,
+      100% calc(100% - 12px), calc(100% - 12px) 100%,
+      12px 100%, 0 calc(100% - 12px)
+    );
+  }
+  .corner-deco {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+  }
+  .corner-deco.tl { top: 8px; left: 8px; border-top: 2px solid #ff0096; border-left: 2px solid #ff0096; }
+  .corner-deco.tr { top: 8px; right: 8px; border-top: 2px solid #00dcff; border-right: 2px solid #00dcff; }
+  .corner-deco.bl { bottom: 8px; left: 8px; border-bottom: 2px solid #00dcff; border-left: 2px solid #00dcff; }
+  .corner-deco.br { bottom: 8px; right: 8px; border-bottom: 2px solid #ff0096; border-right: 2px solid #ff0096; }
+
+  .brand-block {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .brand-label {
+    color: #00dcff;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.4em;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px rgba(0, 220, 255, 0.6);
+  }
+  .brand-name {
+    font-size: 78px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    background: linear-gradient(90deg, #ff0096, #ff00ff, #00dcff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 20px rgba(255, 0, 150, 0.7));
+    text-shadow: 0 0 40px rgba(255, 0, 150, 0.5);
+    font-family: "Impact", "Arial Black", sans-serif;
+  }
+  .brand-sub {
+    color: #ff0096;
+    font-size: 10px;
+    letter-spacing: 0.5em;
+    margin-top: 8px;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+  .frame-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    overflow: hidden;
+    background: #000;
+    margin-bottom: 18px;
+    border: 1px solid rgba(0, 220, 255, 0.4);
+    box-shadow:
+      0 0 20px rgba(0, 220, 255, 0.3),
+      inset 0 0 20px rgba(255, 0, 150, 0.1);
+  }
+  .empty-state {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #ff0096;
+    background: linear-gradient(135deg, #0a0014 0%, #14002b 100%);
+    gap: 16px;
+    text-align: center;
+    padding: 20px;
+  }
+  .empty-state svg {
+    filter: drop-shadow(0 0 10px rgba(255, 0, 150, 0.7));
+  }
+  .empty-state p {
+    font-size: 14px;
+    max-width: 340px;
+    line-height: 1.6;
+    color: #b8b8ff;
+    letter-spacing: 0.05em;
+  }
+  .empty-state .es-title {
+    font-size: 14px;
+    color: #00dcff;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    font-weight: 700;
+    text-shadow: 0 0 15px rgba(0, 220, 255, 0.7);
+  }
+  #player-container, #player-container iframe {
+    width: 100% !important;
+    height: 100% !important;
+    border: none;
+  }
+  .now-playing {
+    background: rgba(0, 220, 255, 0.05);
+    border: 1px solid rgba(0, 220, 255, 0.25);
+    padding: 12px 16px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    color: #b8b8ff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    letter-spacing: 0.03em;
+  }
+  .pulse {
+    width: 8px; height: 8px;
+    background: #ff0096;
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: pulse 1.2s infinite;
+    box-shadow: 0 0 12px #ff0096;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.3); }
+  }
+  .np-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+    font-size: 11px;
+    color: #00dcff;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.1em;
+  }
+  .progress-bar {
+    flex: 1;
+    height: 2px;
+    background: rgba(255, 0, 150, 0.15);
+    cursor: pointer;
+    position: relative;
+    overflow: visible;
+    border-radius: 0;
+  }
+  .progress-fill {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    background: linear-gradient(90deg, #ff0096, #00dcff);
+    width: 0%;
+    transition: width 0.2s linear;
+    box-shadow: 0 0 10px #ff0096;
+  }
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 20px;
+  }
+  .btn {
+    background: transparent;
+    border: 1px solid rgba(255, 0, 150, 0.3);
+    color: #b8b8ff;
+    cursor: pointer;
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+    transition: all 0.15s;
+    clip-path: polygon(
+      6px 0, 100% 0, 100% calc(100% - 6px),
+      calc(100% - 6px) 100%, 0 100%, 0 6px
+    );
+  }
+  .btn:hover {
+    color: #00dcff;
+    border-color: #00dcff;
+    background: rgba(0, 220, 255, 0.1);
+    box-shadow: 0 0 15px rgba(0, 220, 255, 0.5);
+  }
+  .btn:active { transform: scale(0.92); }
+  .btn.on {
+    color: #ff0096;
+    border-color: #ff0096;
+    box-shadow: 0 0 15px rgba(255, 0, 150, 0.6);
+  }
+  .btn:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .btn:disabled:hover {
+    color: #b8b8ff;
+    border-color: rgba(255, 255, 255, 0.1);
+    background: transparent;
+    box-shadow: none;
+  }
+  .btn-main {
+    background: linear-gradient(135deg, #ff0096, #00dcff);
+    color: #000;
+    width: 60px; height: 60px;
+    border: none;
+    box-shadow: 0 0 25px rgba(255, 0, 150, 0.6);
+  }
+  .btn-main:hover {
+    background: linear-gradient(135deg, #ff0096, #00dcff);
+    color: #000;
+    transform: scale(1.08);
+    box-shadow: 0 0 40px rgba(255, 0, 150, 0.9), 0 0 60px rgba(0, 220, 255, 0.5);
+  }
+  .btn-main:disabled {
+    background: #2a2a3a;
+    color: #5a5a6a;
+    box-shadow: none;
+  }
+  .btn-main:disabled:hover { transform: none; }
+  .vol-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 8px;
+    margin-bottom: 24px;
+    justify-content: center;
+  }
+  .vol {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 160px;
+    height: 2px;
+    background: rgba(0, 220, 255, 0.2);
+    outline: none;
+    cursor: pointer;
+  }
+  .vol::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    background: #00dcff;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 0 10px #00dcff;
+  }
+  .vol::-moz-range-thumb {
+    width: 12px; height: 12px;
+    background: #00dcff;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 0 10px #00dcff;
+  }
+
+  .playlist-section {
+    padding-top: 22px;
+    border-top: 1px solid rgba(255, 0, 150, 0.2);
+    margin-bottom: 16px;
+  }
+  .playlist-label {
+    color: #ff0096;
+    font-size: 12px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    text-align: center;
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(255, 0, 150, 0.5);
+  }
+  .playlist-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .pl-input {
+    flex: 1;
+    background: rgba(255, 0, 150, 0.05);
+    border: 1px solid rgba(255, 0, 150, 0.3);
+    color: #fff;
+    padding: 12px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .pl-input::placeholder { color: #6a6a8a; }
+  .pl-input:focus {
+    background: rgba(0, 220, 255, 0.08);
+    border-color: #00dcff;
+    box-shadow: 0 0 15px rgba(0, 220, 255, 0.4);
+  }
+  .load-btn {
+    background: transparent;
+    color: #00dcff;
+    border: 1px solid #00dcff;
+    padding: 0 22px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    transition: all 0.15s;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .load-btn:hover {
+    background: #00dcff;
+    color: #000;
+    box-shadow: 0 0 20px rgba(0, 220, 255, 0.7);
+  }
+  .load-btn:active { transform: scale(0.96); }
+
+  .hints {
+    color: #5a5a8a;
+    font-size: 10px;
+    text-align: center;
+    margin-top: 16px;
+    letter-spacing: 0.1em;
+  }
+  .hints kbd {
+    background: rgba(255, 0, 150, 0.1);
+    border: 1px solid rgba(255, 0, 150, 0.3);
+    padding: 2px 6px;
+    font-family: inherit;
+    font-size: 9px;
+    color: #ff0096;
+    margin: 0 2px;
+  }
+</style>
+</head>
+<body>
+  <div class="player">
+    <span class="corner-deco tl"></span>
+    <span class="corner-deco tr"></span>
+    <span class="corner-deco bl"></span>
+    <span class="corner-deco br"></span>
+
+    <div class="brand-block">
+      <p class="brand-label">&laquo; Créé par &raquo;</p>
+      <h1 class="brand-name">NEY</h1>
+      <p class="brand-sub">music · system · online</p>
+    </div>
+
+    <div class="frame-wrap" id="frame-wrap">
+      <div class="empty-state" id="empty-state">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+        <p class="es-title">System ready</p>
+        <p>Colle un lien YouTube ci-dessous pour lancer la musique</p>
+      </div>
+      <div id="player-container" style="display:none"></div>
+    </div>
+
+    <div class="now-playing">
+      <span class="pulse"></span>
+      <span class="np-text" id="np-text">// aucun contenu chargé</span>
+    </div>
+
+    <div class="progress-row">
+      <span id="t-current">00:00</span>
+      <div class="progress-bar" id="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <span id="t-total">00:00</span>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="b-shuffle" title="Aléatoire (S)" disabled>
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M13.151 1.5L11.78 2.872l1.121 1.121H10.41a3 3 0 00-2.4 1.2L4.81 9.491a1.5 1.5 0 01-1.2.6H1v1.5h2.61a3 3 0 002.4-1.2l3.2-4.298a1.5 1.5 0 011.2-.6h2.491l-1.121 1.121 1.371 1.372L17 4.157l-3.849-2.657zM3.61 4.5H1V6h2.61a1.5 1.5 0 011.2.6l.745 1.001 1.181-1.586-.726-.974a3 3 0 00-2.4-1.2v.659zm6.85 5.41l-.745-1-1.18 1.586.725.974a3 3 0 002.4 1.2h2.491l-1.121 1.121L13.4 14.7l3.85-3.857-3.85-2.657-1.371 1.372 1.121 1.121H10.41a1.5 1.5 0 01-1.2-.6l-.05-.067z"/></svg>
+      </button>
+      <button class="btn" id="b-prev" title="Précédent (←)" disabled>
+        <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"><path d="M3.3 1a.7.7 0 01.7.7v5.15l9.95-5.744a.7.7 0 011.05.606v12.575a.7.7 0 01-1.05.607L4 9.149V14.3a.7.7 0 01-.7.7H1.7a.7.7 0 01-.7-.7V1.7a.7.7 0 01.7-.7h1.6z"/></svg>
+      </button>
+      <button class="btn btn-main" id="b-play" title="Lecture / Pause (Espace)" disabled>
+        <svg id="i-play" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M7.05 3.606l13.49 7.788a.7.7 0 010 1.212L7.05 20.394A.7.7 0 016 19.788V4.212a.7.7 0 011.05-.606z"/></svg>
+        <svg id="i-pause" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M5.7 3a.7.7 0 00-.7.7v16.6a.7.7 0 00.7.7h2.6a.7.7 0 00.7-.7V3.7a.7.7 0 00-.7-.7H5.7zm10 0a.7.7 0 00-.7.7v16.6a.7.7 0 00.7.7h2.6a.7.7 0 00.7-.7V3.7a.7.7 0 00-.7-.7h-2.6z"/></svg>
+      </button>
+      <button class="btn" id="b-next" title="Suivant (→)" disabled>
+        <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor"><path d="M12.7 1a.7.7 0 00-.7.7v5.15L2.05 1.107A.7.7 0 001 1.712v12.575a.7.7 0 001.05.607L12 9.149V14.3a.7.7 0 00.7.7h1.6a.7.7 0 00.7-.7V1.7a.7.7 0 00-.7-.7h-1.6z"/></svg>
+      </button>
+      <button class="btn" id="b-loop" title="Répéter (R)" disabled>
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M0 4.75A3.75 3.75 0 013.75 1h8.5A3.75 3.75 0 0116 4.75v5a3.75 3.75 0 01-3.75 3.75H9.81l1.018 1.018a.75.75 0 11-1.06 1.06L6.939 12.75l2.829-2.828a.75.75 0 011.06 1.06L9.811 12h2.439a2.25 2.25 0 002.25-2.25v-5a2.25 2.25 0 00-2.25-2.25h-8.5A2.25 2.25 0 001.5 4.75v5A2.25 2.25 0 003.75 12H5v1.5H3.75A3.75 3.75 0 010 9.75v-5z"/></svg>
+      </button>
+    </div>
+
+    <div class="vol-row">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="#00dcff"><path d="M9.741.85a.75.75 0 01.375.65v13a.75.75 0 01-1.125.65l-6.925-4a3.642 3.642 0 01-1.33-4.967 3.639 3.639 0 011.33-1.332l6.925-4a.75.75 0 01.75 0z"/></svg>
+      <input type="range" min="0" max="100" value="60" step="1" class="vol" id="vol">
+    </div>
+
+    <div class="playlist-section">
+      <p class="playlist-label">▶ Coller un lien YouTube (playlist ou son)</p>
+      <div class="playlist-row">
+        <input type="text" class="pl-input" id="yt-input" placeholder="https://youtube.com/... (playlist ou vidéo, les 2 marchent)">
+        <button class="load-btn" id="yt-load">Load</button>
+      </div>
+    </div>
+
+    <p class="hints">
+      <kbd>SPACE</kbd> Play &nbsp; <kbd>◀</kbd><kbd>▶</kbd> Nav &nbsp; <kbd>S</kbd> Shuffle &nbsp; <kbd>R</kbd> Loop
+    </p>
+  </div>
+
+<script>
+let player = null;
+let isPlaying = false;
+let isShuffle = false;
+let isLoop = false;
+let progressInterval;
+let apiReady = false;
+let pendingLoad = null;
+let errorSkipCount = 0;
+
+const tag = document.createElement('script');
+tag.src = "https://www.youtube.com/iframe_api";
+document.head.appendChild(tag);
+
+function onYouTubeIframeAPIReady() {
+  apiReady = true;
+  if (pendingLoad) {
+    createPlayer(pendingLoad);
+    pendingLoad = null;
+  }
+}
+
+function destroyPlayer() {
+  if (player) {
+    try { player.destroy(); } catch(e) {}
+    player = null;
+  }
+  const frameWrap = document.getElementById('frame-wrap');
+  const oldContainer = document.getElementById('player-container');
+  if (oldContainer) oldContainer.remove();
+  const newContainer = document.createElement('div');
+  newContainer.id = 'player-container';
+  frameWrap.appendChild(newContainer);
+  stopProgress();
+}
+
+function createPlayer(content) {
+  destroyPlayer();
+  errorSkipCount = 0;
+
+  document.getElementById('empty-state').style.display = 'none';
+  document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+
+  const playerVars = {
+    'controls': 1,
+    'modestbranding': 1,
+    'rel': 0,
+    'iv_load_policy': 3,
+    'playsinline': 1
+  };
+
+  const config = {
+    width: '100%',
+    height: '100%',
+    playerVars: playerVars,
+    events: {
+      'onReady': (event) => onPlayerReady(event, content),
+      'onStateChange': onPlayerStateChange,
+      'onError': onPlayerError
+    }
+  };
+
+  // On crée d'abord un player vide avec une vidéo temporaire
+  // puis on charge la playlist/vidéo dans onReady (méthode plus fiable)
+  if (content.type === 'video') {
+    config.videoId = content.id;
+  }
+
+  player = new YT.Player('player-container', config);
+}
+
+function onPlayerReady(event, content) {
+  try {
+    player.setVolume(parseInt(document.getElementById('vol').value) || 60);
+  } catch(e) {}
+
+  // Chargement via méthode cuePlaylist/loadPlaylist (plus fiable que les playerVars)
+  if (content.type === 'playlist') {
+    try {
+      player.loadPlaylist({
+        list: content.id,
+        listType: 'playlist',
+        index: 0
+      });
+    } catch(e) {
+      document.getElementById('np-text').textContent = '// erreur de chargement';
+    }
+  }
+  // Pour les vidéos, c'est déjà chargé via videoId dans playerVars
+  // On force le play après un petit délai
+  setTimeout(() => {
+    try { player.playVideo(); } catch(e) {}
+  }, 800);
+
+  document.getElementById('np-text').textContent = '// chargement…';
+}
+
+function onPlayerStateChange(event) {
+  const state = event.data;
+  isPlaying = state === YT.PlayerState.PLAYING;
+  document.getElementById('i-play').style.display = isPlaying ? 'none' : 'block';
+  document.getElementById('i-pause').style.display = isPlaying ? 'block' : 'none';
+  if (state === 1 || state === 2) {
+    try {
+      const data = player.getVideoData();
+      if (data && data.title) {
+        document.getElementById('np-text').textContent = data.title;
+        errorSkipCount = 0; // reset car on a réussi à lire une vidéo
+      }
+    } catch(e) {}
+  }
+  if (state === 1) startProgress();
+  else stopProgress();
+}
+
+function onPlayerError(event) {
+  const code = event.data;
+  // 100 = supprimée, 101/150 = embed interdit, 2 = paramètre invalide
+  if (code === 100 || code === 101 || code === 150 || code === 2) {
+    errorSkipCount++;
+    if (errorSkipCount > 20) {
+      document.getElementById('np-text').textContent = '// trop de vidéos indisponibles, stop';
+      return;
+    }
+    document.getElementById('np-text').textContent = '// vidéo ' + errorSkipCount + ' indisponible, skip…';
+    // Essayer de passer à la vidéo suivante de la playlist
+    setTimeout(() => {
+      try {
+        const playlist = player.getPlaylist();
+        if (playlist && playlist.length > 0) {
+          const currentIndex = player.getPlaylistIndex();
+          const nextIndex = currentIndex + 1;
+          if (nextIndex < playlist.length) {
+            player.playVideoAt(nextIndex);
+          } else {
+            document.getElementById('np-text').textContent = '// fin de playlist';
+          }
+        } else {
+          player.nextVideo();
+        }
+      } catch(e) {
+        document.getElementById('np-text').textContent = '// impossible de passer à la suivante';
+      }
+    }, 1000);
+  }
+}
+
+function startProgress() {
+  stopProgress();
+  progressInterval = setInterval(() => {
+    if (!player || !player.getDuration) return;
+    try {
+      const cur = player.getCurrentTime();
+      const tot = player.getDuration();
+      if (tot > 0) {
+        document.getElementById('progress-fill').style.width = (cur / tot * 100) + '%';
+        document.getElementById('t-current').textContent = formatTime(cur);
+        document.getElementById('t-total').textContent = formatTime(tot);
+      }
+    } catch(e) {}
+  }, 500);
+}
+function stopProgress() {
+  if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+}
+function formatTime(s) {
+  if (!s || isNaN(s)) return '00:00';
+  s = Math.floor(s);
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+function parseYoutubeUrl(input) {
+  if (!input) return null;
+  input = input.trim();
+
+  let playlistId = null;
+  let videoId = null;
+
+  const plMatch = input.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+  if (plMatch) playlistId = plMatch[1];
+
+  const vidPatterns = [
+    /[?&]v=([a-zA-Z0-9_-]{11})/,
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/
+  ];
+  for (const p of vidPatterns) {
+    const m = input.match(p);
+    if (m) { videoId = m[1]; break; }
+  }
+
+  if (!playlistId && !videoId) {
+    if (/^PL[a-zA-Z0-9_-]+$/.test(input) || /^[A-Z]{2}[a-zA-Z0-9_-]+$/.test(input)) {
+      playlistId = input;
+    } else if (/^[a-zA-Z0-9_-]{11}$/.test(input)) {
+      videoId = input;
+    }
+  }
+
+  if (playlistId) return { type: 'playlist', id: playlistId };
+  if (videoId) return { type: 'video', id: videoId };
+  return null;
+}
+
+function handleLoad() {
+  const input = document.getElementById('yt-input').value.trim();
+  if (!input) return;
+  const content = parseYoutubeUrl(input);
+  if (!content) {
+    alert('Lien YouTube invalide.\n\nColle une URL complète :\n• Playlist : https://youtube.com/playlist?list=...\n• Vidéo : https://youtube.com/watch?v=...\n• Ou https://youtu.be/...');
+    return;
+  }
+
+  document.getElementById('np-text').textContent = '// chargement…';
+
+  if (apiReady) {
+    createPlayer(content);
+  } else {
+    pendingLoad = content;
+  }
+  document.getElementById('yt-input').value = '';
+}
+
+document.getElementById('b-play').addEventListener('click', () => {
+  if (!player) return;
+  try { isPlaying ? player.pauseVideo() : player.playVideo(); } catch(e) {}
+});
+document.getElementById('b-prev').addEventListener('click', () => { if (player) try { player.previousVideo(); } catch(e) {} });
+document.getElementById('b-next').addEventListener('click', () => { if (player) try { player.nextVideo(); } catch(e) {} });
+document.getElementById('b-shuffle').addEventListener('click', function() {
+  if (!player) return;
+  isShuffle = !isShuffle;
+  try { player.setShuffle(isShuffle); } catch(e) {}
+  this.classList.toggle('on', isShuffle);
+});
+document.getElementById('b-loop').addEventListener('click', function() {
+  if (!player) return;
+  isLoop = !isLoop;
+  try { player.setLoop(isLoop); } catch(e) {}
+  this.classList.toggle('on', isLoop);
+});
+document.getElementById('vol').addEventListener('input', (e) => {
+  if (player) try { player.setVolume(parseInt(e.target.value)); } catch(e) {}
+});
+document.getElementById('progress-bar').addEventListener('click', (e) => {
+  if (!player || !player.getDuration) return;
+  try {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    const dur = player.getDuration();
+    if (dur > 0) player.seekTo(dur * pct, true);
+  } catch(e) {}
+});
+
+document.getElementById('yt-load').addEventListener('click', handleLoad);
+document.getElementById('yt-input').addEventListener('keydown', (e) => {
+  if (e.code === 'Enter') handleLoad();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (!player) return;
+  if (e.code === 'Space') { e.preventDefault(); document.getElementById('b-play').click(); }
+  else if (e.code === 'ArrowLeft') document.getElementById('b-prev').click();
+  else if (e.code === 'ArrowRight') document.getElementById('b-next').click();
+  else if (e.code === 'KeyS') document.getElementById('b-shuffle').click();
+  else if (e.code === 'KeyR') document.getElementById('b-loop').click();
+});
+</script>
+</body>
+</html>
